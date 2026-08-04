@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مُعِدّ — إدارة دراسة القضايا</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{
+  --bg:#F6F7F8; --surface:#FFFFFF; --surface-2:#EFF1F3; --surface-3:#E7E9EC;
+  --text:#1C1D21; --text-2:#6B6F76; --text-3:#9A9EA6;
+  --border:#E5E7EA;
+  --accent:#0F6B63; --accent-soft:#E3F2EF; --accent-text:#0B4F49;
+  --red:#E1484D; --red-soft:#FBE7E7;
+  --orange:#F0932B; --orange-soft:#FCEEDD;
+  --yellow:#D8A400; --yellow-soft:#FBF3D6;
+  --green:#2FAE60; --green-soft:#E5F6EC;
+  --shadow: 0 1px 2px rgba(20,20,25,.04), 0 8px 24px -12px rgba(20,20,25,.10);
+  --shadow-lg: 0 4px 10px rgba(20,20,25,.06), 0 20px 48px -16px rgba(20,20,25,.18);
+  --radius: 18px; --radius-sm: 12px;
+  color-scheme: light;
+}
+:root[data-theme="dark"]{
+  --bg:#0E0F11; --surface:#17181B; --surface-2:#1E2023; --surface-3:#26282C;
+  --text:#F1F2F3; --text-2:#9DA1A8; --text-3:#6E7278;
+  --border:#2A2C30;
+  --accent:#3FD9C4; --accent-soft:rgba(63,217,196,.12); --accent-text:#3FD9C4;
+  --red:#F0666A; --red-soft:rgba(240,102,106,.14);
+  --orange:#F5A94D; --orange-soft:rgba(245,169,77,.14);
+  --yellow:#E3C24A; --yellow-soft:rgba(227,194,74,.14);
+  --green:#4EC97F; --green-soft:rgba(78,201,127,.14);
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  --shadow-lg: 0 4px 10px rgba(0,0,0,.35), 0 24px 56px -18px rgba(0,0,0,.65);
+  color-scheme: dark;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans Arabic', sans-serif;
+  -webkit-font-smoothing:antialiased;
+  transition:background .25s ease, color .25s ease;
+  min-height:100vh;
+}
+.display{font-family:'Cairo', sans-serif;}
+button{font-family:inherit; cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+::selection{background:var(--accent-soft); color:var(--accent-text);}
+::-webkit-scrollbar{width:8px; height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+
+/* ---------- layout ---------- */
+.app{max-width:1180px; margin:0 auto; padding:20px 24px 80px;}
+.topbar{
+  position:sticky; top:0; z-index:30; backdrop-filter:blur(14px);
+  background:color-mix(in srgb, var(--bg) 78%, transparent);
+  border-bottom:1px solid transparent;
+  padding:14px 0;
+}
+.topbar.scrolled{border-bottom-color:var(--border);}
+.topbar-inner{max-width:1180px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:14px;}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px;}
+.brand .dot{width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft);}
+.search-wrap{flex:1; max-width:420px; position:relative;}
+.search-wrap input{
+  width:100%; padding:10px 40px 10px 14px; border-radius:12px; border:1px solid var(--border);
+  background:var(--surface-2); color:var(--text); font-size:14px; outline:none; transition:.15s;
+}
+.search-wrap input:focus{border-color:var(--accent); background:var(--surface); box-shadow:0 0 0 3px var(--accent-soft);}
+.search-wrap svg{position:absolute; right:12px; top:50%; transform:translateY(-50%); opacity:.5; pointer-events:none;}
+.icon-btn{
+  width:38px; height:38px; border-radius:11px; border:1px solid var(--border); background:var(--surface);
+  display:flex; align-items:center; justify-content:center; color:var(--text-2); transition:.15s;
+}
+.icon-btn:hover{background:var(--surface-2); color:var(--text);}
+.btn{
+  display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:12px; border:none;
+  font-weight:600; font-size:14px; transition:.15s;
+}
+.btn-primary{background:var(--accent); color:#fff;}
+.btn-primary:hover{filter:brightness(1.08); transform:translateY(-1px);}
+.btn-ghost{background:var(--surface-2); color:var(--text);}
+.btn-ghost:hover{background:var(--surface-3);}
+.btn-soft{background:var(--accent-soft); color:var(--accent-text);}
+
+/* ---------- sections ---------- */
+.section{margin-top:32px;}
+.section-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px;}
+.section-title{font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px;}
+.section-sub{font-size:12.5px; color:var(--text-2);}
+
+/* priority scroller */
+.priority-scroller{display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; scroll-snap-type:x proximity;}
+.priority-scroller::-webkit-scrollbar{height:6px;}
+.pcard{
+  min-width:250px; scroll-snap-align:start; background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); cursor:pointer; transition:.18s;
+  position:relative; overflow:hidden;
+}
+.pcard:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg);}
+.pcard .rank{
+  position:absolute; top:14px; left:14px; font-family:'Cairo'; font-weight:800; font-size:22px; color:var(--surface-3); z-index:0;
+}
+.pcard-top{display:flex; justify-content:space-between; align-items:flex-start; position:relative; z-index:1;}
+.ring-wrap{width:46px; height:46px; position:relative; flex-shrink:0;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-wrap .ring-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;}
+.pcard .pnum{font-weight:700; font-size:14.5px; margin-top:10px; position:relative; z-index:1;}
+.pcard .pparties{font-size:12.5px; color:var(--text-2); margin-top:2px; position:relative; z-index:1;}
+.pcard .pmeta{display:flex; align-items:center; gap:6px; margin-top:12px; font-size:11.5px; position:relative; z-index:1;}
+
+/* filter chips */
+.chip-row{display:flex; flex-wrap:wrap; gap:8px;}
+.chip{
+  padding:7px 13px; border-radius:100px; border:1px solid var(--border); background:var(--surface);
+  font-size:12.5px; font-weight:500; color:var(--text-2); transition:.15s; display:inline-flex; align-items:center; gap:6px;
+}
+.chip:hover{border-color:var(--accent);}
+.chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+/* case grid */
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(268px,1fr)); gap:16px; margin-top:16px;}
+.case-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px;
+  box-shadow:var(--shadow); cursor:pointer; transition:.18s; position:relative;
+}
+.case-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg);}
+.case-card .urgency-dot{width:9px; height:9px; border-radius:50%; position:absolute; top:18px; left:18px;}
+.case-card .urgency-dot.pulse{animation:pulse 1.6s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 currentColor44;} 70%{box-shadow:0 0 0 8px transparent;} 100%{box-shadow:0 0 0 0 transparent;}}
+.case-card .cnum{font-weight:700; font-size:15px;}
+.case-card .cparties{font-size:12.5px; color:var(--text-2); margin-top:3px;}
+.case-card .ctype-tag{
+  display:inline-block; margin-top:10px; font-size:11px; padding:3px 9px; border-radius:7px;
+  background:var(--surface-2); color:var(--text-2); font-weight:600;
+}
+.case-card .cdate-row{display:flex; align-items:center; justify-content:space-between; margin-top:14px; font-size:12px;}
+.days-badge{padding:4px 10px; border-radius:8px; font-weight:700; font-size:11.5px;}
+.progress-bar{height:5px; background:var(--surface-2); border-radius:6px; margin-top:12px; overflow:hidden;}
+.progress-bar>div{height:100%; background:var(--accent); border-radius:6px; transition:width .3s;}
+.status-row{display:flex; align-items:center; justify-content:space-between; margin-top:10px;}
+.status-pill{font-size:11px; font-weight:600; padding:3px 9px; border-radius:7px;}
+
+.empty-state{
+  text-align:center; padding:60px 20px; color:var(--text-2);
+}
+.empty-state .em-icon{font-size:38px; margin-bottom:10px; opacity:.6;}
+.empty-state .em-title{font-weight:700; color:var(--text); font-size:15px; margin-bottom:4px;}
+
+/* ---------- modal ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(10,10,12,.5); backdrop-filter:blur(3px); z-index:100;
+  display:flex; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto;
+  opacity:0; pointer-events:none; transition:opacity .2s ease;
+}
+.overlay.open{opacity:1; pointer-events:all;}
+.modal{
+  background:var(--surface); border-radius:20px; max-width:600px; width:100%; box-shadow:var(--shadow-lg);
+  border:1px solid var(--border); transform:translateY(14px) scale(.98); transition:transform .22s ease;
+  max-height:calc(100vh - 80px); display:flex; flex-direction:column;
+}
+.overlay.open .modal{transform:translateY(0) scale(1);}
+.modal.wide{max-width:760px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:20px 22px; border-bottom:1px solid var(--border);}
+.modal-title{font-weight:800; font-size:17px;}
+.modal-body{padding:20px 22px; overflow-y:auto;}
+.modal-foot{padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;}
+
+.field{margin-bottom:16px;}
+.field label{display:block; font-size:12.5px; font-weight:600; color:var(--text-2); margin-bottom:7px;}
+.field input[type=text], .field select, .field textarea{
+  width:100%; padding:11px 13px; border-radius:11px; border:1px solid var(--border); background:var(--surface-2);
+  color:var(--text); font-size:14px; outline:none; transition:.15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:var(--accent); background:var(--surface); box-shadow:0 0 0 3px var(--accent-soft);}
+.field textarea{min-height:90px; resize:vertical; line-height:1.6;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+
+/* toggle group (status buttons) */
+.toggle-group{display:flex; flex-wrap:wrap; gap:8px;}
+.toggle-opt{
+  padding:9px 14px; border-radius:11px; border:1px solid var(--border); background:var(--surface-2);
+  font-size:13px; font-weight:600; color:var(--text-2); transition:.15s; display:flex; align-items:center; gap:7px;
+}
+.toggle-opt .radio-dot{width:14px; height:14px; border-radius:50%; border:2px solid var(--text-3); position:relative; flex-shrink:0;}
+.toggle-opt.selected{background:var(--accent-soft); color:var(--accent-text); border-color:var(--accent);}
+.toggle-opt.selected .radio-dot{border-color:var(--accent);}
+.toggle-opt.selected .radio-dot::after{content:''; position:absolute; inset:2px; border-radius:50%; background:var(--accent);}
+
+/* checkbox grid */
+.check-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.check-item{
+  display:flex; align-items:center; gap:9px; padding:10px 12px; border-radius:11px; border:1px solid var(--border);
+  background:var(--surface-2); font-size:13px; transition:.15s; user-select:none;
+}
+.check-item:hover{border-color:var(--accent);}
+.check-item.checked{background:var(--accent-soft); border-color:var(--accent); color:var(--accent-text); font-weight:600;}
+.check-item .box{width:17px; height:17px; border-radius:6px; border:2px solid var(--text-3); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:.15s;}
+.check-item.checked .box{background:var(--accent); border-color:var(--accent);}
+.check-item .box svg{opacity:0; transition:.15s;}
+.check-item.checked .box svg{opacity:1;}
+
+/* hijri date picker */
+.hijri-picker{display:flex; gap:8px;}
+.hijri-picker select{flex:1;}
+
+/* detail view */
+.detail-header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+.detail-cards{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px;}
+.detail-card{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:14px;}
+.detail-card h4{font-size:13px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:6px;}
+.detail-card textarea{
+  width:100%; min-height:80px; border:none; background:transparent; color:var(--text); font-size:13px; line-height:1.7;
+  resize:vertical; outline:none;
+}
+.detail-card textarea::placeholder{color:var(--text-3);}
+.log-strip{display:flex; flex-wrap:wrap; gap:16px; margin-top:18px; padding:14px 16px; background:var(--surface-2); border-radius:14px; font-size:12px; color:var(--text-2);}
+.log-strip b{color:var(--text); font-weight:700;}
+
+.tabs{display:flex; gap:6px; margin-top:16px; border-bottom:1px solid var(--border);}
+.tab{padding:9px 4px; font-size:13px; font-weight:600; color:var(--text-2); border-bottom:2px solid transparent; margin-left:18px;}
+.tab.active{color:var(--accent-text); border-color:var(--accent);}
+
+.toast{
+  position:fixed; bottom:26px; right:50%; transform:translateX(50%) translateY(20px); background:var(--text); color:var(--bg);
+  padding:11px 20px; border-radius:12px; font-size:13.5px; font-weight:600; z-index:200; opacity:0; transition:.25s; box-shadow:var(--shadow-lg);
+}
+.toast.show{opacity:1; transform:translateX(50%) translateY(0);}
+
+.fab{
+  position:fixed; bottom:26px; left:26px; z-index:40; width:54px; height:54px; border-radius:50%; background:var(--accent);
+  color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-lg); border:none; transition:.18s;
+}
+.fab:hover{transform:scale(1.06);}
+
+@media (max-width:640px){
+  .row2, .row3{grid-template-columns:1fr;}
+  .detail-cards{grid-template-columns:1fr;}
+  .check-grid{grid-template-columns:1fr;}
+  .search-wrap{max-width:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="dot"></span><span class="display">مُعِدّ</span></div>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="ابحث برقم القضية، الأطراف، النوع، أو الملاحظات…">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    </div>
+    <button class="icon-btn" id="themeToggle" title="الوضع الداكن">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 1 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    </button>
+    <button class="btn btn-ghost" id="googleConnectBtn" title="ربط حساب جوجل للحفظ السحابي والتقويم والمهام">
+      <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.07-1.5-.2-2.2H12v4.3h5.9c-.25 1.4-1.05 2.5-2.2 3.3v2.7h3.6c2.1-1.9 3.2-4.8 3.2-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-1 7.28-2.7l-3.6-2.7c-1 .7-2.25 1.1-3.68 1.1-2.83 0-5.23-1.9-6.09-4.5H2.2v2.8C4 20.9 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.91 14.2c-.22-.7-.35-1.4-.35-2.2s.13-1.5.35-2.2V7H2.2C1.44 8.5 1 10.2 1 12s.44 3.5 1.2 5l3.71-2.8z"/><path fill="#EA4335" d="M12 5.4c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.1 14.97 1 12 1 7.7 1 4 3.1 2.2 7l3.71 2.8c.86-2.6 3.26-4.4 6.09-4.4z"/></svg>
+      <span id="googleBtnLabel">ربط جوجل</span>
+    </button>
+    <button class="btn btn-primary" id="newCaseBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      قضية جديدة
+    </button>
+  </div>
+</div>
+
+<div class="app">
+
+  <div class="section" id="prioritySection">
+    <div class="section-head">
+      <div class="section-title">✨ ابدأ من هنا</div>
+      <div class="section-sub" id="todayHijri"></div>
+    </div>
+    <div class="priority-scroller" id="priorityScroller"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">تصفية</div>
+      <div class="section-sub" id="resultCount"></div>
+    </div>
+    <div class="chip-row" id="filterChips"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <div class="section-title">جميع القضايا</div>
+    </div>
+    <div class="grid" id="casesGrid"></div>
+  </div>
+
+</div>
+
+<button class="fab" id="fabAdd" title="قضية جديدة">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- Add/Edit case modal -->
+<div class="overlay" id="caseFormOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="caseFormTitle">قضية جديدة</div>
+      <button class="icon-btn" data-close="caseFormOverlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>رقم القضية</label><input type="text" id="f_number" placeholder="مثال: ٤٤٦٧٨٩"></div>
+        <div class="field"><label>نوع القضية</label>
+          <select id="f_type">
+            <option value="مرورية">مرورية</option>
+            <option value="مالية">مالية</option>
+            <option value="عقارية">عقارية</option>
+            <option value="أحوال شخصية">أحوال شخصية</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>المدعي</label><input type="text" id="f_plaintiff" placeholder="اسم المدعي"></div>
+        <div class="field"><label>المدعى عليه</label><input type="text" id="f_defendant" placeholder="اسم المدعى عليه"></div>
+      </div>
+      <div class="field">
+        <label>تاريخ الجلسة (هجري)</label>
+        <div class="hijri-picker">
+          <select id="f_day"></select>
+          <select id="f_month"></select>
+          <select id="f_year"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>وقت الجلسة (اختياري، افتراضي ٩:٠٠ صباحًا)</label>
+        <input type="time" id="f_time" value="09:00">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" data-close="caseFormOverlay">إلغاء</button>
+      <button class="btn btn-primary" id="saveCaseBtn">حفظ القضية</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder modal -->
+<div class="overlay" id="reminderOverlay">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <div class="modal-title">أضف تذكيرًا</div>
+      <button class="icon-btn" data-close="reminderOverlay">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-sub" style="margin-bottom:12px;">اختر موعد التذكير — يُنشأ الحدث تلقائيًا في تقويم Google بمجرد الاختيار.</div>
+      <div class="toggle-group" id="reminderOptions" style="flex-direction:column; align-items:stretch;"></div>
+      <div class="section-sub" id="reminderGoogleHint" style="margin-top:14px; line-height:1.7;"></div>
+    </div>
+    <div class="modal-foot" id="reminderRemoveFoot" style="display:none;">
+      <button class="btn btn-ghost" id="removeReminderBtn">إلغاء التذكير</button>
+    </div>
+  </div>
+</div>
+
+<!-- Case detail modal -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal wide">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="d_number">—</div>
+        <div class="section-sub" id="d_parties" style="margin-top:2px;"></div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="icon-btn" id="editCaseBtn" title="تعديل بيانات القضية">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="icon-btn" id="deleteCaseBtn" title="حذف القضية">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0-1 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 6"/></svg>
+        </button>
+        <button class="icon-btn" data-close="detailOverlay">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span class="days-badge" id="d_daysBadge"></span>
+        <span class="section-sub" id="d_dateStr"></span>
+        <span class="ctype-tag" id="d_typeTag"></span>
+      </div>
+
+      <div class="progress-bar" style="margin-top:14px;"><div id="d_progressFill"></div></div>
+      <div class="section-sub" id="d_progressLabel" style="margin-top:6px;"></div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="study">دراسة القضية</div>
+        <div class="tab" data-tab="notes">البطاقات</div>
+        <div class="tab" data-tab="status">حالة الدراسة</div>
+      </div>
+
+      <div id="tab_study" class="tab-panel">
+        <div class="check-grid" id="d_checklist" style="margin-top:16px;"></div>
+      </div>
+
+      <div id="tab_notes" class="tab-panel" style="display:none;">
+        <div class="detail-cards" id="d_detailCards"></div>
+      </div>
+
+      <div id="tab_status" class="tab-panel" style="display:none; margin-top:16px;">
+        <div class="toggle-group" id="d_statusOptions"></div>
+        <button class="btn btn-soft" id="openReminderBtn" style="margin-top:18px;">
+          🔔 أضف تذكيرًا
+        </button>
+        <span class="section-sub" id="d_reminderInfo" style="margin-right:10px;"></span>
+        <div class="log-strip" id="d_log"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =================== Hijri <-> Gregorian conversion (tabular Islamic calendar) =================== */
+function gregorianToJDN(y,m,d){
+  const a = Math.floor((14-m)/12);
+  const y2 = y + 4800 - a;
+  const m2 = m + 12*a - 3;
+  return d + Math.floor((153*m2+2)/5) + 365*y2 + Math.floor(y2/4) - Math.floor(y2/100) + Math.floor(y2/400) - 32045;
+}
+function jdnToGregorian(jdn){
+  const a = jdn + 32044;
+  const b = Math.floor((4*a+3)/146097);
+  const c = a - Math.floor((146097*b)/4);
+  const d2 = Math.floor((4*c+3)/1461);
+  const e = c - Math.floor((1461*d2)/4);
+  const m2 = Math.floor((5*e+2)/153);
+  const day = e - Math.floor((153*m2+2)/5) + 1;
+  const month = m2 + 3 - 12*Math.floor(m2/10);
+  const year = 100*b + d2 - 4800 + Math.floor(m2/10);
+  return {y:year, m:month, d:day};
+}
+function islamicToJDN(y,m,d){
+  return d + Math.ceil(29.5*(m-1)) + (y-1)*354 + Math.floor((3+11*y)/30) + 1948440 - 1;
+}
+function jdnToIslamic(jdnIn){
+  let jdn = jdnIn - 1948440 + 10632;
+  const n = Math.floor((jdn-1)/10631);
+  jdn = jdn - 10631*n + 354;
+  const j = (Math.floor((10985-jdn)/5316))*(Math.floor((50*jdn)/17719)) + (Math.floor(jdn/5670))*(Math.floor((43*jdn)/15238));
+  jdn = jdn - (Math.floor((30-j)/15))*(Math.floor((17719*j)/50)) - (Math.floor(j/16))*(Math.floor((15238*j)/43)) + 29;
+  const iMonth = Math.floor((24*jdn)/709);
+  const iDay = jdn - Math.floor((709*iMonth)/24);
+  const iYear = 30*n + j - 30;
+  return {y:iYear, m:iMonth, d:iDay};
+}
+function hijriToGregorian(y,m,d){ return jdnToGregorian(islamicToJDN(y,m,d)); }
+function gregorianToHijri(y,m,d){ return jdnToIslamic(gregorianToJDN(y,m,d)); }
+function hijriToJSDate(y,m,d){ const g = hijriToGregorian(y,m,d); return new Date(g.y, g.m-1, g.d); }
+
+const HIJRI_MONTHS = ["محرم","صفر","ربيع الأول","ربيع الآخر","جمادى الأولى","جمادى الآخرة","رجب","شعبان","رمضان","شوال","ذو القعدة","ذو الحجة"];
+const WEEKDAYS = ["الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+
+function todayHijri(){
+  const t = new Date();
+  return gregorianToHijri(t.getFullYear(), t.getMonth()+1, t.getDate());
+}
+function fmtHijri(h){ return `${h.d} ${HIJRI_MONTHS[h.m-1]} ${h.y}هـ`; }
+
+/* =================== Constants =================== */
+const REASONS = [
+  {k:'study_lawsuit', l:'دراسة الدعوى'},
+  {k:'study_response', l:'دراسة الجواب'},
+  {k:'review_memos', l:'مراجعة المذكرات'},
+  {k:'review_evidence', l:'مراجعة البينات'},
+  {k:'review_acknowledgements', l:'مراجعة الإقرارات'},
+  {k:'review_docs', l:'مراجعة المستندات'},
+  {k:'review_expert', l:'مراجعة تقرير الخبير'},
+  {k:'review_prior_rulings', l:'مراجعة الأحكام السابقة'},
+  {k:'review_regulations', l:'مراجعة الأنظمة'},
+  {k:'review_bylaws', l:'مراجعة اللائحة التنفيذية'},
+  {k:'review_precedents', l:'مراجعة السوابق القضائية'},
+  {k:'prep_questions', l:'تجهيز أسئلة الجلسة'},
+  {k:'draft_ruling', l:'كتابة مسودة الحكم'},
+  {k:'ready_for_ruling', l:'القضية جاهزة للحكم'},
+  {k:'needs_extra_session', l:'تحتاج جلسة إضافية'},
+  {k:'waiting_doc', l:'انتظار مستند'},
+  {k:'waiting_response', l:'انتظار جواب'},
+  {k:'waiting_expert', l:'انتظار خبير'},
+  {k:'waiting_witness', l:'انتظار شاهد'},
+  {k:'needs_fiqh_research', l:'تحتاج بحثًا فقهيًا'},
+  {k:'needs_legal_research', l:'تحتاج بحثًا نظاميًا'},
+  {k:'needs_final_review', l:'تحتاج مراجعة أخيرة'},
+  {k:'other', l:'أخرى'},
+];
+const STATUSES = [
+  {k:'not_started', l:'لم أبدأ'},
+  {k:'in_progress', l:'بدأت الدراسة'},
+  {k:'needs_review', l:'تحتاج مراجعة'},
+  {k:'completed', l:'مكتملة'},
+  {k:'ready', l:'جاهزة للحكم'},
+];
+const DETAIL_CARDS = [
+  {k:'lawsuit', l:'ملخص الدعوى', icon:'📄'},
+  {k:'response', l:'ملخص الجواب', icon:'📝'},
+  {k:'evidence', l:'البينات', icon:'📂'},
+  {k:'acknowledgements', l:'الإقرارات', icon:'📌'},
+  {k:'legalIssues', l:'المسائل النظامية', icon:'⚖️'},
+  {k:'pointsToStudy', l:'نقاط تحتاج دراسة', icon:'💡'},
+  {k:'notes', l:'ملاحظاتي', icon:'✍️'},
+];
+const TYPES = ['مرورية','مالية','عقارية','أحوال شخصية','أخرى'];
+const REMINDER_PRESETS = [
+  {k:'week',   l:'قبل أسبوع',        icon:'📆'},
+  {k:'3days',  l:'قبل 3 أيام',       icon:'🗓️'},
+  {k:'1day',   l:'قبل يوم',          icon:'⏰'},
+  {k:'morning',l:'صباح يوم الجلسة',  icon:'🌅'},
+  {k:'2hours', l:'قبل ساعتين',       icon:'⏱️'},
+];
+function reminderPresetLabel(k){ return (REMINDER_PRESETS.find(p=>p.k===k)||{}).l || ''; }
+
+/* =================== Google integration (Drive + Calendar + Tasks) =================== */
+/*
+  خطوات التفعيل (مرة واحدة فقط):
+  1) افتح https://console.cloud.google.com/ وأنشئ مشروعًا جديدًا.
+  2) من "APIs & Services > Library" فعّل: Google Drive API، Google Calendar API، Google Tasks API.
+  3) من "APIs & Services > OAuth consent screen" أنشئ شاشة موافقة (External) وأضف بريدك كمستخدم تجريبي.
+  4) من "APIs & Services > Credentials" أنشئ "OAuth client ID" من نوع Web application،
+     وأضف رابط الموقع الذي رفعت عليه هذا الملف (https://...) ضمن Authorized JavaScript origins.
+     ملاحظة: جوجل لا تسمح بتسجيل الدخول من ملف محلي (file://) — لازم رابط https حقيقي (مثل GitHub Pages أو Vercel).
+  5) انسخ الـ Client ID وضعه مكان النص أدناه.
+*/
+const GOOGLE_CLIENT_ID = "PUT_YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/drive.file",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/tasks",
+].join(" ");
+const DRIVE_FILENAME = "case-tracker-data.json";
+
+let gTokenClient = null;
+let gAccessToken = null;
+let gConnected = false;
+let gDriveFileId = null;
+let gSaveDebounce = null;
+
+function isGoogleConfigured(){ return !GOOGLE_CLIENT_ID.includes("PUT_YOUR_GOOGLE_CLIENT_ID"); }
+
+function initGoogleClient(){
+  if(!isGoogleConfigured()) return;
+  if(!window.google || !google.accounts || !google.accounts.oauth2){ setTimeout(initGoogleClient, 300); return; }
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_SCOPES,
+    callback: async (resp)=>{
+      if(resp.error){ showToast('تعذّر الاتصال بحساب جوجل'); return; }
+      gAccessToken = resp.access_token;
+      gConnected = true;
+      updateGoogleBtn();
+      showToast('تم الاتصال بحساب جوجل ✓');
+      await driveLoadCases();
+      await driveSaveCases();
+    }
+  });
+}
+function updateGoogleBtn(){
+  const label = document.getElementById('googleBtnLabel');
+  const btn = document.getElementById('googleConnectBtn');
+  if(gConnected){ label.textContent = 'متصل بجوجل ✓'; btn.classList.add('btn-soft'); }
+  else { label.textContent = 'ربط جوجل'; btn.classList.remove('btn-soft'); }
+}
+function connectGoogle(){
+  if(!isGoogleConfigured()){
+    showToast('أضف Client ID الخاص بك أولاً داخل الكود (أعلى قسم Google integration)');
+    return;
+  }
+  if(!gTokenClient){ showToast('جاري تحميل مكتبة جوجل، حاول بعد لحظات'); return; }
+  gTokenClient.requestAccessToken({ prompt: gAccessToken ? '' : 'consent' });
+}
+
+/* ---- Drive: save/load all cases as one JSON file (scoped to files this app creates) ---- */
+async function driveFindFile(){
+  const q = encodeURIComponent(`name='${DRIVE_FILENAME}' and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+    headers:{ 'Authorization':'Bearer '+gAccessToken }
+  });
+  const data = await res.json();
+  return (data.files && data.files.length) ? data.files[0].id : null;
+}
+async function driveLoadCases(){
+  if(!gConnected) return;
+  try{
+    let fid = gDriveFileId || await driveFindFile();
+    if(!fid) return;
+    gDriveFileId = fid;
+    await window.storage.set('gdrive_file_id', fid, false);
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {
+      headers:{ 'Authorization':'Bearer '+gAccessToken }
+    });
+    const remote = await res.json();
+    if(Array.isArray(remote) && remote.length){
+      cases = remote;
+      await window.storage.set('cases', JSON.stringify(cases), false);
+      renderAll();
+    }
+  }catch(e){ console.error('driveLoadCases', e); }
+}
+async function driveSaveCases(){
+  if(!gConnected) return;
+  const boundary = 'case_tracker_boundary';
+  const metadata = { name: DRIVE_FILENAME, mimeType: 'application/json' };
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(cases)}\r\n--${boundary}--`;
+  try{
+    let fid = gDriveFileId || await driveFindFile();
+    const url = fid
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart`
+      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+    const res = await fetch(url, {
+      method: fid ? 'PATCH' : 'POST',
+      headers:{ 'Authorization':'Bearer '+gAccessToken, 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body
+    });
+    const data = await res.json();
+    if(data.id){ gDriveFileId = data.id; await window.storage.set('gdrive_file_id', data.id, false); }
+  }catch(e){ console.error('driveSaveCases', e); }
+}
+function queueDriveSave(){
+  if(!gConnected) return;
+  clearTimeout(gSaveDebounce);
+  gSaveDebounce = setTimeout(driveSaveCases, 1200);
+}
+
+/* ---- Calendar: timed event per active reminder preset ---- */
+function sessionDateTime(c){
+  const g = hijriToGregorian(c.session.y, c.session.m, c.session.d);
+  const [hh, mm] = (c.sessionTime || '09:00').split(':').map(Number);
+  return new Date(g.y, g.m-1, g.d, hh, mm, 0);
+}
+function reminderDateFor(c){
+  const dt = sessionDateTime(c);
+  switch(c.reminder.preset){
+    case 'week':   return new Date(dt.getTime() - 7*24*60*60*1000);
+    case '3days':  return new Date(dt.getTime() - 3*24*60*60*1000);
+    case '1day':   return new Date(dt.getTime() - 1*24*60*60*1000);
+    case 'morning':{ const d = new Date(dt); d.setHours(7,0,0,0); return d; }
+    case '2hours': return new Date(dt.getTime() - 2*60*60*1000);
+    default:       return new Date(dt.getTime() - 24*60*60*1000);
+  }
+}
+const USER_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Riyadh';
+function toLocalISO(d){
+  const pad = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+}
+async function upsertCalendarEvent(c){
+  if(!gConnected || !c.reminder.enabled) return;
+  const start = reminderDateFor(c);
+  const end = new Date(start.getTime() + 30*60*1000);
+  const event = {
+    summary: `⚖️ دراسة قضية ${c.number} — ${reminderPresetLabel(c.reminder.preset)}`,
+    description: `${c.plaintiff} ضد ${c.defendant}\nجلسة يوم: ${fmtHijri(c.session)} (${weekdayOf(c)})`,
+    start:{ dateTime: toLocalISO(start), timeZone: USER_TZ },
+    end:{ dateTime: toLocalISO(end), timeZone: USER_TZ },
+    reminders:{ useDefault:false, overrides:[{method:'popup', minutes:0}] }
+  };
+  try{
+    const has = !!c.reminder.calendarEventId;
+    const url = has
+      ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${c.reminder.calendarEventId}`
+      : `https://www.googleapis.com/calendar/v3/calendars/primary/events`;
+    const res = await fetch(url, {
+      method: has ? 'PATCH' : 'POST',
+      headers:{ 'Authorization':'Bearer '+gAccessToken, 'Content-Type':'application/json' },
+      body: JSON.stringify(event)
+    });
+    const data = await res.json();
+    if(data.id) c.reminder.calendarEventId = data.id;
+  }catch(e){ console.error('upsertCalendarEvent', e); }
+}
+async function deleteCalendarEvent(c){
+  if(!gConnected || !c.reminder.calendarEventId) return;
+  try{
+    await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${c.reminder.calendarEventId}`, {
+      method:'DELETE', headers:{ 'Authorization':'Bearer '+gAccessToken }
+    });
+  }catch(e){ console.error('deleteCalendarEvent', e); }
+}
+
+/* ---- Google Tasks: syncs into iPhone Reminders if the user links their Google account
+       under iPhone Settings > Calendar/Reminders > Accounts > add Google account ---- */
+async function upsertGoogleTask(c){
+  if(!gConnected || !c.reminder.enabled) return;
+  const d = reminderDateFor(c);
+  const task = {
+    title: `دراسة قضية ${c.number} — ${c.plaintiff} ضد ${c.defendant}`,
+    notes: `${reminderPresetLabel(c.reminder.preset)} — جلسة يوم ${fmtHijri(c.session)} (${weekdayOf(c)})`,
+    due: d.toISOString()
+  };
+  try{
+    const has = !!c.reminder.taskId;
+    const url = has
+      ? `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${c.reminder.taskId}`
+      : `https://www.googleapis.com/tasks/v1/lists/@default/tasks`;
+    const res = await fetch(url, {
+      method: has ? 'PATCH' : 'POST',
+      headers:{ 'Authorization':'Bearer '+gAccessToken, 'Content-Type':'application/json' },
+      body: JSON.stringify(task)
+    });
+    const data = await res.json();
+    if(data.id) c.reminder.taskId = data.id;
+  }catch(e){ console.error('upsertGoogleTask', e); }
+}
+async function deleteGoogleTask(c){
+  if(!gConnected || !c.reminder.taskId) return;
+  try{
+    await fetch(`https://www.googleapis.com/tasks/v1/lists/@default/tasks/${c.reminder.taskId}`, {
+      method:'DELETE', headers:{ 'Authorization':'Bearer '+gAccessToken }
+    });
+  }catch(e){ console.error('deleteGoogleTask', e); }
+}
+async function removeReminderFromGoogle(c){
+  await Promise.all([deleteCalendarEvent(c), deleteGoogleTask(c)]);
+  c.reminder.calendarEventId = null;
+  c.reminder.taskId = null;
+}
+async function syncReminderToGoogle(c){
+  if(!gConnected) return;
+  await Promise.all([upsertCalendarEvent(c), upsertGoogleTask(c)]);
+}
+
+/* =================== State & storage =================== */
+let cases = [];
+let activeFilters = new Set();
+let searchQuery = '';
+let currentCaseId = null;
+let editMode = false;
+let currentTab = 'study';
+
+async function loadCases(){
+  try{
+    const res = await window.storage.get('cases', false);
+    cases = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ cases = []; }
+}
+async function persistCases(){
+  try{ await window.storage.set('cases', JSON.stringify(cases), false); }
+  catch(e){ showToast('تعذّر الحفظ، حاول مجددًا'); }
+  queueDriveSave();
+}
+function uid(){ return 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* =================== Derived helpers =================== */
+function daysRemaining(c){
+  const g = hijriToGregorian(c.session.y, c.session.m, c.session.d);
+  const sessionDate = new Date(g.y, g.m-1, g.d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  sessionDate.setHours(0,0,0,0);
+  return Math.round((sessionDate - today) / 86400000);
+}
+function weekdayOf(c){
+  const g = hijriToGregorian(c.session.y, c.session.m, c.session.d);
+  return WEEKDAYS[new Date(g.y, g.m-1, g.d).getDay()];
+}
+function urgencyLevel(days){
+  if(days<=1) return 'red';
+  if(days<=3) return 'orange';
+  if(days<=7) return 'yellow';
+  return 'green';
+}
+function urgencyLabel(days){
+  if(days<0) return 'فاتت الجلسة';
+  if(days===0) return 'اليوم';
+  if(days===1) return 'غدًا';
+  return `بعد ${days} ${days===2?'يومين':'أيام'}`;
+}
+function progressPct(c){
+  const total = REASONS.length;
+  const checked = REASONS.filter(r=>c.reasons[r.k]).length;
+  return Math.round((checked/total)*100);
+}
+function statusLabel(k){ return (STATUSES.find(s=>s.k===k)||{}).l || k; }
+
+function priorityScore(c){
+  if(c.status==='completed' || c.status==='ready') return -1;
+  const days = daysRemaining(c);
+  if(days < -30) return -1;
+  let urgency;
+  if(days<=1) urgency=100; else if(days<=3) urgency=82; else if(days<=7) urgency=58; else urgency=Math.max(8, 40-days);
+  const gap = 100 - progressPct(c);
+  const lastOpened = c.log.lastOpened ? new Date(c.log.lastOpened) : new Date(c.log.createdAt);
+  const staleDays = Math.min(14, (Date.now()-lastOpened.getTime())/86400000);
+  return urgency*1.4 + gap*0.55 + staleDays*2.2;
+}
+
+/* =================== Rendering =================== */
+function el(html){ const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
+function esc(s){ return (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function renderAll(){
+  renderPriority();
+  renderFilterChips();
+  renderGrid();
+  document.getElementById('todayHijri').textContent = fmtHijri(todayHijri());
+}
+
+function renderPriority(){
+  const scroller = document.getElementById('priorityScroller');
+  const ranked = cases.map(c=>({c, score:priorityScore(c)})).filter(x=>x.score>=0).sort((a,b)=>b.score-a.score).slice(0,5);
+  document.getElementById('prioritySection').style.display = ranked.length ? '' : 'none';
+  scroller.innerHTML = '';
+  ranked.forEach((item, i)=>{
+    const c = item.c;
+    const days = daysRemaining(c);
+    const lvl = urgencyLevel(days);
+    const pct = progressPct(c);
+    const circumference = 2*Math.PI*17;
+    const offset = circumference * (1 - pct/100);
+    const card = el(`
+      <div class="pcard" data-id="${c.id}">
+        <span class="rank">${i+1}</span>
+        <div class="pcard-top">
+          <div></div>
+          <div class="ring-wrap">
+            <svg width="46" height="46" viewBox="0 0 46 46">
+              <circle cx="23" cy="23" r="17" fill="none" stroke="var(--surface-3)" stroke-width="4"/>
+              <circle cx="23" cy="23" r="17" fill="none" stroke="var(--${lvl})" stroke-width="4" stroke-linecap="round"
+                stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+            </svg>
+            <div class="ring-label">${pct}%</div>
+          </div>
+        </div>
+        <div class="pnum">${esc(c.number)}</div>
+        <div class="pparties">${esc(c.plaintiff)} ضد ${esc(c.defendant)}</div>
+        <div class="pmeta">
+          <span class="days-badge" style="background:var(--${lvl}-soft); color:var(--${lvl});">${urgencyLabel(days)}</span>
+          <span style="color:var(--text-2);">· ${statusLabel(c.status)}</span>
+        </div>
+      </div>
+    `);
+    card.addEventListener('click', ()=>openDetail(c.id));
+    scroller.appendChild(card);
+  });
+}
+
+const FILTER_DEFS = [
+  {k:'tomorrow', l:'غدًا', group:'time'},
+  {k:'within3', l:'خلال ٣ أيام', group:'time'},
+  {k:'withinWeek', l:'خلال أسبوع', group:'time'},
+  {k:'ready', l:'جاهزة للحكم', group:'status'},
+  {k:'not_started', l:'لم تبدأ', group:'status'},
+  {k:'in_progress', l:'قيد الدراسة', group:'status'},
+  {k:'completed', l:'مكتملة', group:'status'},
+  {k:'مرورية', l:'مرورية', group:'type'},
+  {k:'مالية', l:'مالية', group:'type'},
+  {k:'عقارية', l:'عقارية', group:'type'},
+  {k:'أحوال شخصية', l:'أحوال شخصية', group:'type'},
+];
+function renderFilterChips(){
+  const wrap = document.getElementById('filterChips');
+  wrap.innerHTML='';
+  FILTER_DEFS.forEach(f=>{
+    const chip = el(`<div class="chip ${activeFilters.has(f.k)?'active':''}" data-k="${f.k}">${f.l}</div>`);
+    chip.addEventListener('click', ()=>{
+      if(activeFilters.has(f.k)) activeFilters.delete(f.k); else activeFilters.add(f.k);
+      renderFilterChips(); renderGrid();
+    });
+    wrap.appendChild(chip);
+  });
+}
+function matchesFilters(c){
+  const groups = {time:[], status:[], type:[]};
+  FILTER_DEFS.forEach(f=>{ if(activeFilters.has(f.k)) groups[f.group].push(f.k); });
+  const days = daysRemaining(c);
+  if(groups.time.length){
+    const ok = groups.time.some(k=>{
+      if(k==='tomorrow') return days===1;
+      if(k==='within3') return days>=0 && days<=3;
+      if(k==='withinWeek') return days>=0 && days<=7;
+      return false;
+    });
+    if(!ok) return false;
+  }
+  if(groups.status.length){
+    const ok = groups.status.some(k=>{
+      if(k==='ready') return c.status==='ready';
+      if(k==='not_started') return c.status==='not_started';
+      if(k==='in_progress') return c.status==='in_progress' || c.status==='needs_review';
+      if(k==='completed') return c.status==='completed';
+      return false;
+    });
+    if(!ok) return false;
+  }
+  if(groups.type.length){
+    if(!groups.type.includes(c.type)) return false;
+  }
+  return true;
+}
+function matchesSearch(c){
+  if(!searchQuery) return true;
+  const q = searchQuery.trim().toLowerCase();
+  const hay = [c.number, c.plaintiff, c.defendant, c.type, ...DETAIL_CARDS.map(d=>c.details[d.k]||'')].join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
+function renderGrid(){
+  const grid = document.getElementById('casesGrid');
+  const list = cases.filter(c=>matchesFilters(c) && matchesSearch(c))
+    .sort((a,b)=> daysRemaining(a) - daysRemaining(b));
+  document.getElementById('resultCount').textContent = `${list.length} من ${cases.length} قضية`;
+  grid.innerHTML='';
+  if(!list.length){
+    grid.appendChild(el(`
+      <div class="empty-state" style="grid-column:1/-1;">
+        <div class="em-icon">🗂️</div>
+        <div class="em-title">${cases.length? 'لا توجد قضايا مطابقة':'لا توجد قضايا بعد'}</div>
+        <div>${cases.length? 'جرّب تعديل الفلاتر أو البحث':'ابدأ بإضافة أول قضية من الزر أدناه'}</div>
+      </div>
+    `));
+    return;
+  }
+  list.forEach(c=>{
+    const days = daysRemaining(c);
+    const lvl = urgencyLevel(days);
+    const pct = progressPct(c);
+    const card = el(`
+      <div class="case-card" data-id="${c.id}">
+        <div class="urgency-dot ${lvl==='red'?'pulse':''}" style="background:var(--${lvl}); color:var(--${lvl});"></div>
+        <div class="cnum">${esc(c.number)}</div>
+        <div class="cparties">${esc(c.plaintiff)} ضد ${esc(c.defendant)}</div>
+        <span class="ctype-tag">${esc(c.type)}</span>
+        <div class="cdate-row">
+          <span>${weekdayOf(c)} · ${fmtHijri(c.session)}</span>
+          <span class="days-badge" style="background:var(--${lvl}-soft); color:var(--${lvl});">${urgencyLabel(days)}</span>
+        </div>
+        <div class="progress-bar"><div style="width:${pct}%;"></div></div>
+        <div class="status-row">
+          <span class="section-sub">${pct}% مكتملة</span>
+          <span class="status-pill" style="background:var(--accent-soft); color:var(--accent-text);">${statusLabel(c.status)}</span>
+        </div>
+      </div>
+    `);
+    card.addEventListener('click', ()=>openDetail(c.id));
+    grid.appendChild(card);
+  });
+}
+
+/* =================== Toast =================== */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* =================== Case form (add/edit) =================== */
+function populateHijriSelectors(){
+  const daySel = document.getElementById('f_day');
+  const monthSel = document.getElementById('f_month');
+  const yearSel = document.getElementById('f_year');
+  daySel.innerHTML = Array.from({length:30},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join('');
+  monthSel.innerHTML = HIJRI_MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+  const ty = todayHijri();
+  yearSel.innerHTML = Array.from({length:6},(_,i)=>ty.y-1+i).map(y=>`<option value="${y}">${y}هـ</option>`).join('');
+}
+function openCaseForm(existing){
+  editMode = !!existing;
+  document.getElementById('caseFormTitle').textContent = editMode ? 'تعديل بيانات القضية' : 'قضية جديدة';
+  document.getElementById('f_number').value = existing? existing.number : '';
+  document.getElementById('f_type').value = existing? existing.type : 'مرورية';
+  document.getElementById('f_plaintiff').value = existing? existing.plaintiff : '';
+  document.getElementById('f_defendant').value = existing? existing.defendant : '';
+  const h = existing? existing.session : todayHijri();
+  document.getElementById('f_day').value = h.d;
+  document.getElementById('f_month').value = h.m;
+  document.getElementById('f_year').value = h.y;
+  document.getElementById('f_time').value = existing? (existing.sessionTime || '09:00') : '09:00';
+  document.getElementById('caseFormOverlay').classList.add('open');
+}
+async function saveCaseForm(){
+  const number = document.getElementById('f_number').value.trim();
+  const plaintiff = document.getElementById('f_plaintiff').value.trim();
+  const defendant = document.getElementById('f_defendant').value.trim();
+  const type = document.getElementById('f_type').value;
+  const sessionTime = document.getElementById('f_time').value || '09:00';
+  const session = {
+    d: parseInt(document.getElementById('f_day').value),
+    m: parseInt(document.getElementById('f_month').value),
+    y: parseInt(document.getElementById('f_year').value),
+  };
+  if(!number || !plaintiff || !defendant){ showToast('يرجى تعبئة الحقول الأساسية'); return; }
+
+  if(editMode && currentCaseId){
+    const c = cases.find(x=>x.id===currentCaseId);
+    Object.assign(c, {number, plaintiff, defendant, type, session, sessionTime});
+    c.log.lastModified = new Date().toISOString();
+    if(gConnected && c.reminder.enabled){ await upsertCalendarEvent(c); await upsertGoogleTask(c); }
+  } else {
+    const now = new Date().toISOString();
+    cases.push({
+      id: uid(), number, plaintiff, defendant, type, session, sessionTime,
+      reasons: Object.fromEntries(REASONS.map(r=>[r.k,false])),
+      status: 'not_started',
+      details: Object.fromEntries(DETAIL_CARDS.map(d=>[d.k,''])),
+      reminder: {enabled:false, preset:null, calendarEventId:null, taskId:null},
+      log: {createdAt: now, lastOpened: now, lastModified: now}
+    });
+  }
+  await persistCases();
+  closeOverlay('caseFormOverlay');
+  renderAll();
+  showToast('تم حفظ القضية');
+}
+
+/* =================== Detail view =================== */
+function openDetail(id){
+  currentCaseId = id;
+  const c = cases.find(x=>x.id===id);
+  if(!c) return;
+  c.log.lastOpened = new Date().toISOString();
+  persistCases();
+
+  document.getElementById('d_number').textContent = c.number;
+  document.getElementById('d_parties').textContent = `${c.plaintiff} ضد ${c.defendant}`;
+  const days = daysRemaining(c);
+  const lvl = urgencyLevel(days);
+  const badge = document.getElementById('d_daysBadge');
+  badge.textContent = urgencyLabel(days);
+  badge.style.background = `var(--${lvl}-soft)`; badge.style.color = `var(--${lvl})`;
+  document.getElementById('d_dateStr').textContent = `${weekdayOf(c)} · ${fmtHijri(c.session)}`;
+  document.getElementById('d_typeTag').textContent = c.type;
+
+  const pct = progressPct(c);
+  document.getElementById('d_progressFill').style.width = pct+'%';
+  document.getElementById('d_progressLabel').textContent = `${pct}% من مهام الدراسة مكتملة`;
+
+  renderChecklist(c);
+  renderDetailCards(c);
+  renderStatusOptions(c);
+  renderLog(c);
+  switchTab('study');
+
+  document.getElementById('detailOverlay').classList.add('open');
+}
+function renderChecklist(c){
+  const wrap = document.getElementById('d_checklist');
+  wrap.innerHTML='';
+  REASONS.forEach(r=>{
+    const checked = !!c.reasons[r.k];
+    const item = el(`
+      <div class="check-item ${checked?'checked':''}" data-k="${r.k}">
+        <span class="box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span>${r.l}</span>
+      </div>
+    `);
+    item.addEventListener('click', async ()=>{
+      c.reasons[r.k] = !c.reasons[r.k];
+      c.log.lastModified = new Date().toISOString();
+      await persistCases();
+      renderChecklist(c);
+      const p = progressPct(c);
+      document.getElementById('d_progressFill').style.width = p+'%';
+      document.getElementById('d_progressLabel').textContent = `${p}% من مهام الدراسة مكتملة`;
+      renderGrid(); renderPriority();
+    });
+    wrap.appendChild(item);
+  });
+}
+function renderDetailCards(c){
+  const wrap = document.getElementById('d_detailCards');
+  wrap.innerHTML='';
+  DETAIL_CARDS.forEach(d=>{
+    const card = el(`
+      <div class="detail-card">
+        <h4>${d.icon} ${d.l}</h4>
+        <textarea placeholder="اكتب هنا…">${esc(c.details[d.k])}</textarea>
+      </div>
+    `);
+    const ta = card.querySelector('textarea');
+    ta.value = c.details[d.k] || '';
+    let debounce;
+    ta.addEventListener('input', ()=>{
+      clearTimeout(debounce);
+      debounce = setTimeout(async ()=>{
+        c.details[d.k] = ta.value;
+        c.log.lastModified = new Date().toISOString();
+        await persistCases();
+      }, 400);
+    });
+    wrap.appendChild(card);
+  });
+}
+function renderStatusOptions(c){
+  const wrap = document.getElementById('d_statusOptions');
+  wrap.innerHTML='';
+  STATUSES.forEach(s=>{
+    const opt = el(`<div class="toggle-opt ${c.status===s.k?'selected':''}" data-k="${s.k}"><span class="radio-dot"></span>${s.l}</div>`);
+    opt.addEventListener('click', async ()=>{
+      c.status = s.k;
+      c.log.lastModified = new Date().toISOString();
+      await persistCases();
+      renderStatusOptions(c);
+      renderGrid(); renderPriority();
+    });
+    wrap.appendChild(opt);
+  });
+  const info = document.getElementById('d_reminderInfo');
+  info.textContent = c.reminder.enabled ? `🔔 تذكير مفعّل — ${reminderPresetLabel(c.reminder.preset)}${gConnected? ' (متزامن مع Google)':''}` : '';
+}
+function renderLog(c){
+  const wrap = document.getElementById('d_log');
+  const fmt = (iso)=> new Date(iso).toLocaleDateString('ar-SA', {day:'numeric', month:'short', year:'numeric'});
+  wrap.innerHTML = `
+    <span>تاريخ الإنشاء: <b>${fmt(c.log.createdAt)}</b></span>
+    <span>آخر فتح: <b>${fmt(c.log.lastOpened)}</b></span>
+    <span>آخر تعديل: <b>${fmt(c.log.lastModified)}</b></span>
+    <span>الحالة: <b>${statusLabel(c.status)}</b></span>
+  `;
+}
+function switchTab(name){
+  currentTab = name;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.getElementById('tab_study').style.display = name==='study'?'':'none';
+  document.getElementById('tab_notes').style.display = name==='notes'?'':'none';
+  document.getElementById('tab_status').style.display = name==='status'?'':'none';
+}
+
+/* =================== Overlays =================== */
+function closeOverlay(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('[data-close]').forEach(b=>{
+  b.addEventListener('click', ()=>closeOverlay(b.dataset.close));
+});
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click', (e)=>{ if(e.target===o) closeOverlay(o.id); });
+});
+
+/* =================== Wire up static controls =================== */
+document.getElementById('newCaseBtn').addEventListener('click', ()=>{ currentCaseId=null; openCaseForm(null); });
+document.getElementById('fabAdd').addEventListener('click', ()=>{ currentCaseId=null; openCaseForm(null); });
+document.getElementById('saveCaseBtn').addEventListener('click', saveCaseForm);
+document.getElementById('editCaseBtn').addEventListener('click', ()=>{
+  const c = cases.find(x=>x.id===currentCaseId);
+  closeOverlay('detailOverlay');
+  openCaseForm(c);
+});
+document.getElementById('deleteCaseBtn').addEventListener('click', async ()=>{
+  if(!confirm('هل تريد حذف هذه القضية نهائيًا؟')) return;
+  cases = cases.filter(x=>x.id!==currentCaseId);
+  await persistCases();
+  closeOverlay('detailOverlay');
+  renderAll();
+  showToast('تم حذف القضية');
+});
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>switchTab(t.dataset.tab)));
+
+function renderReminderOptions(c){
+  const wrap = document.getElementById('reminderOptions');
+  wrap.innerHTML = '';
+  REMINDER_PRESETS.forEach(p=>{
+    const opt = el(`
+      <div class="toggle-opt ${c.reminder.preset===p.k?'selected':''}" data-k="${p.k}" style="justify-content:flex-start;">
+        <span class="radio-dot"></span>${p.icon} ${p.l}
+      </div>
+    `);
+    opt.addEventListener('click', async ()=>{
+      c.reminder.enabled = true;
+      c.reminder.preset = p.k;
+      c.log.lastModified = new Date().toISOString();
+      renderReminderOptions(c);
+      showToast(gConnected ? 'جاري إنشاء الحدث في تقويم Google…' : 'تم تحديد التذكير');
+      await syncReminderToGoogle(c);
+      await persistCases();
+      renderStatusOptions(c);
+      closeOverlay('reminderOverlay');
+      showToast(gConnected ? `تم إنشاء تذكير "${p.l}" في تقويم ومهام Google ✓` : `تم تحديد التذكير: ${p.l} (اربط جوجل لتفعيل المزامنة التلقائية)`);
+    });
+    wrap.appendChild(opt);
+  });
+  document.getElementById('reminderRemoveFoot').style.display = c.reminder.enabled ? 'flex' : 'none';
+}
+document.getElementById('openReminderBtn').addEventListener('click', ()=>{
+  const c = cases.find(x=>x.id===currentCaseId);
+  document.getElementById('reminderGoogleHint').textContent = gConnected
+    ? '🔗 سيُضاف تلقائيًا كحدث في تقويم Google ومهمة في Google Tasks (تظهر في تذكيرات الآيفون إذا ربطت حساب جوجل من إعدادات الآيفون).'
+    : 'ℹ️ اضغط "ربط جوجل" أعلى الصفحة أولًا ليُضاف هذا التذكير تلقائيًا لتقويمك ومهامك.';
+  renderReminderOptions(c);
+  document.getElementById('reminderOverlay').classList.add('open');
+});
+document.getElementById('removeReminderBtn').addEventListener('click', async ()=>{
+  const c = cases.find(x=>x.id===currentCaseId);
+  await removeReminderFromGoogle(c);
+  c.reminder.enabled = false;
+  c.reminder.preset = null;
+  c.log.lastModified = new Date().toISOString();
+  await persistCases();
+  renderStatusOptions(c);
+  closeOverlay('reminderOverlay');
+  showToast('تم إلغاء التذكير');
+});
+document.getElementById('googleConnectBtn').addEventListener('click', connectGoogle);
+
+document.getElementById('searchInput').addEventListener('input', (e)=>{ searchQuery = e.target.value; renderGrid(); });
+
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', async ()=>{
+  const root = document.documentElement;
+  const next = root.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try{ await window.storage.set('theme', next, false); }catch(e){}
+});
+window.addEventListener('scroll', ()=>{
+  document.getElementById('topbar').classList.toggle('scrolled', window.scrollY>4);
+});
+
+/* =================== Seed sample data (first run only) =================== */
+function seedIfEmpty(){
+  if(cases.length) return;
+  const ty = todayHijri();
+  const mk = (offsetDays, num, pl, def, type, statusIdx, reasonsOn)=>{
+    const base = hijriToJSDate(ty.y, ty.m, ty.d);
+    base.setDate(base.getDate()+offsetDays);
+    const h = gregorianToHijri(base.getFullYear(), base.getMonth()+1, base.getDate());
+    const now = new Date().toISOString();
+    const reasons = Object.fromEntries(REASONS.map(r=>[r.k,false]));
+    reasonsOn.forEach(k=>reasons[k]=true);
+    return {
+      id:uid(), number:num, plaintiff:pl, defendant:def, type, session:h, sessionTime:'09:00',
+      reasons, status: STATUSES[statusIdx].k,
+      details: Object.fromEntries(DETAIL_CARDS.map(d=>[d.k,''])),
+      reminder:{enabled:false, preset:null, calendarEventId:null, taskId:null},
+      log:{createdAt:now, lastOpened:now, lastModified:now}
+    };
+  };
+  cases = [
+    mk(1, '٤٤٦٧٨٩', 'شركة الوفاء التجارية', 'مؤسسة النخبة للمقاولات', 'مالية', 1, ['study_lawsuit','review_docs']),
+    mk(3, '٤٤٥٥١٢', 'عبدالله المطيري', 'تركي العتيبي', 'مرورية', 0, []),
+    mk(6, '٤٤٧٠٠١', 'نورة الشهري', 'شركة الإسكان الحديث', 'عقارية', 2, ['review_evidence','review_expert','waiting_expert']),
+    mk(14, 'أحوال ١٢٣', 'سارة القحطاني', '—', 'أحوال شخصية', 0, []),
+  ];
+  persistCases();
+}
+
+/* =================== Init =================== */
+async function init(){
+  populateHijriSelectors();
+  let savedTheme = 'light';
+  try{
+    const t = await window.storage.get('theme', false);
+    if(t && t.value) savedTheme = t.value;
+  }catch(e){}
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  try{
+    const fid = await window.storage.get('gdrive_file_id', false);
+    if(fid && fid.value) gDriveFileId = fid.value;
+  }catch(e){}
+  await loadCases();
+  seedIfEmpty();
+  renderAll();
+  updateGoogleBtn();
+  if(!isGoogleConfigured()){
+    document.getElementById('googleConnectBtn').title = 'أضف Client ID الخاص بك داخل الكود لتفعيل هذه الميزة';
+  }
+  initGoogleClient();
+}
+init();
+</script>
+</body>
+</html>
