@@ -260,6 +260,9 @@ input,select,textarea{font-family:inherit;}
       <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.5 12.2c0-.8-.07-1.5-.2-2.2H12v4.3h5.9c-.25 1.4-1.05 2.5-2.2 3.3v2.7h3.6c2.1-1.9 3.2-4.8 3.2-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-1 7.28-2.7l-3.6-2.7c-1 .7-2.25 1.1-3.68 1.1-2.83 0-5.23-1.9-6.09-4.5H2.2v2.8C4 20.9 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.91 14.2c-.22-.7-.35-1.4-.35-2.2s.13-1.5.35-2.2V7H2.2C1.44 8.5 1 10.2 1 12s.44 3.5 1.2 5l3.71-2.8z"/><path fill="#EA4335" d="M12 5.4c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.1 14.97 1 12 1 7.7 1 4 3.1 2.2 7l3.71 2.8c.86-2.6 3.26-4.4 6.09-4.4z"/></svg>
       <span id="googleBtnLabel">ربط جوجل</span>
     </button>
+    <button class="icon-btn" id="syncStatusBtn" title="حالة المزامنة">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+    </button>
     <button class="btn btn-primary" id="newCaseBtn">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       قضية جديدة
@@ -417,6 +420,36 @@ input,select,textarea{font-family:inherit;}
 
 <div class="toast" id="toast"></div>
 
+<!-- Sync status panel -->
+<div class="overlay" id="syncOverlay">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head">
+      <div class="modal-title">🔄 حالة المزامنة</div>
+      <button class="icon-btn" data-close="syncOverlay">✕</button>
+    </div>
+    <div class="modal-body" id="syncPanelBody"></div>
+  </div>
+</div>
+
+<!-- Conflict resolution modal -->
+<div class="overlay" id="conflictOverlay">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <div class="modal-title">⚠️ تعارض في البيانات</div>
+    </div>
+    <div class="modal-body">
+      <div class="section-sub" style="line-height:1.8;">
+        تم تعديل القضايا من جهاز آخر، وعندك أيضًا تعديلات محلية لم تُرفع بعد.
+        اختر أي نسخة تريد الاحتفاظ بها:
+      </div>
+    </div>
+    <div class="modal-foot" style="justify-content:stretch; gap:10px;">
+      <button class="btn btn-ghost" style="flex:1; justify-content:center;" id="useRemoteBtn">استخدام نسخة Drive</button>
+      <button class="btn btn-primary" style="flex:1; justify-content:center;" id="useLocalBtn">رفع نسختي المحلية</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =================== Hijri <-> Gregorian conversion (tabular Islamic calendar) =================== */
 function gregorianToJDN(y,m,d){
@@ -516,6 +549,16 @@ const REMINDER_PRESETS = [
 ];
 function reminderPresetLabel(k){ return (REMINDER_PRESETS.find(p=>p.k===k)||{}).l || ''; }
 
+/* =================== Local storage layer (works on any domain — no Claude runtime needed) =================== */
+/* هذا الملف يُستضاف على نطاقك الخاص (خارج claude.ai) حتى يعمل تسجيل الدخول بجوجل،
+   لذلك لا نعتمد على window.storage (خاص ببيئة Claude فقط) بل على localStorage القياسي في المتصفح. */
+const LocalStore = {
+  get(key){ try{ return localStorage.getItem('ct_'+key); }catch(e){ return null; } },
+  set(key, value){ try{ localStorage.setItem('ct_'+key, value); return true; }catch(e){ return false; } },
+  remove(key){ try{ localStorage.removeItem('ct_'+key); }catch(e){} }
+};
+function nowISO(){ return new Date().toISOString(); }
+
 /* =================== Google integration (Drive + Calendar + Tasks) =================== */
 /*
   خطوات التفعيل (مرة واحدة فقط):
@@ -526,20 +569,46 @@ function reminderPresetLabel(k){ return (REMINDER_PRESETS.find(p=>p.k===k)||{}).
      وأضف رابط الموقع الذي رفعت عليه هذا الملف (https://...) ضمن Authorized JavaScript origins.
      ملاحظة: جوجل لا تسمح بتسجيل الدخول من ملف محلي (file://) — لازم رابط https حقيقي (مثل GitHub Pages أو Vercel).
   5) انسخ الـ Client ID وضعه مكان النص أدناه.
+
+  حدود مهمة (بدون Client Secret / بدون خادم):
+  - هذا تطبيق Frontend بالكامل، فلا يوجد Refresh Token حقيقي (ذاك يتطلب خادمًا وClient Secret).
+  - البديل المطبّق هنا: تجديد صامت للجلسة (Silent Token Refresh) كل ~50 دقيقة طالما التبويب مفتوح،
+    ومحاولة استعادة صامتة عند إعادة فتح الموقع (تعتمد على أن متصفحك لا يزال يحتفظ بجلسة جوجل نشطة).
+    إذا حظر المتصفح الكوكيز الطرف-ثالث أو انتهت جلسة جوجل نفسها، سيُطلب منك الضغط على "ربط جوجل" يدويًا مرة أخرى.
 */
 const GOOGLE_CLIENT_ID = "148453343314-t3kfbqreqp8hna0uh2n90q9pk66vfu9l.apps.googleusercontent.com";
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/tasks",
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 const DRIVE_FILENAME = "case-tracker-data.json";
 
 let gTokenClient = null;
 let gAccessToken = null;
+let gTokenExpiry = 0;
 let gConnected = false;
 let gDriveFileId = null;
 let gSaveDebounce = null;
+let gRefreshTimer = null;
+
+/* ---- Sync status (feeds the "حالة المزامنة" panel) ---- */
+let syncStatus = {
+  connected:false, account:'', lastSync:null, lastSave:null,
+  driveFileId:null, dataSize:0, lastError:null, lastErrorAt:null
+};
+function setSyncStatus(partial){
+  Object.assign(syncStatus, partial);
+  renderSyncPanel();
+}
+function setLastError(msg){
+  syncStatus.lastError = msg;
+  syncStatus.lastErrorAt = nowISO();
+  console.error('[Google Sync خطأ]', msg);
+  renderSyncPanel();
+}
 
 function isGoogleConfigured(){ return !GOOGLE_CLIENT_ID.includes("PUT_YOUR_GOOGLE_CLIENT_ID"); }
 
@@ -549,84 +618,260 @@ function initGoogleClient(){
   gTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_CLIENT_ID,
     scope: GOOGLE_SCOPES,
-    callback: async (resp)=>{
-      if(resp.error){ showToast('تعذّر الاتصال بحساب جوجل'); return; }
-      gAccessToken = resp.access_token;
-      gConnected = true;
-      updateGoogleBtn();
-      showToast('تم الاتصال بحساب جوجل ✓');
-      await driveLoadCases();
-      await driveSaveCases();
-    }
+    callback: ()=>{} // overridden per-request in requestGoogleToken()
   });
 }
 function updateGoogleBtn(){
   const label = document.getElementById('googleBtnLabel');
   const btn = document.getElementById('googleConnectBtn');
-  if(gConnected){ label.textContent = 'متصل بجوجل ✓'; btn.classList.add('btn-soft'); }
+  if(gConnected){ label.textContent = syncStatus.account ? syncStatus.account.split('@')[0] : 'متصل بجوجل ✓'; btn.classList.add('btn-soft'); }
   else { label.textContent = 'ربط جوجل'; btn.classList.remove('btn-soft'); }
+  syncStatus.connected = gConnected;
 }
-function connectGoogle(){
+function applyTokenResponse(resp){
+  gAccessToken = resp.access_token;
+  gTokenExpiry = Date.now() + (Number(resp.expires_in||3300) * 1000);
+  gConnected = true;
+  LocalStore.set('google_connected', '1');
+  updateGoogleBtn();
+  scheduleTokenRefresh();
+}
+function scheduleTokenRefresh(){
+  clearTimeout(gRefreshTimer);
+  const msUntilRefresh = Math.max(30000, (gTokenExpiry - Date.now()) - 2*60*1000);
+  gRefreshTimer = setTimeout(()=>{ ensureFreshToken().catch(()=>{}); }, msUntilRefresh);
+}
+function requestGoogleToken(interactive){
+  return new Promise((resolve, reject)=>{
+    if(!gTokenClient){ reject(new Error('مكتبة جوجل لم تُحمَّل بعد')); return; }
+    gTokenClient.callback = (resp)=>{
+      if(resp && resp.error){ reject(new Error(resp.error_description || resp.error)); return; }
+      applyTokenResponse(resp);
+      resolve(gAccessToken);
+    };
+    try{
+      gTokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' });
+    }catch(e){ reject(e); }
+  });
+}
+function tokenValid(){ return !!gAccessToken && Date.now() < (gTokenExpiry - 60000); }
+async function ensureFreshToken(){
+  if(tokenValid()) return gAccessToken;
+  try{
+    await requestGoogleToken(false);
+    return gAccessToken;
+  }catch(e){
+    gConnected = false;
+    updateGoogleBtn();
+    setLastError('انتهت جلسة جوجل ولم يمكن تجديدها تلقائيًا — اضغط "ربط جوجل" لإعادة الاتصال. (' + e.message + ')');
+    throw e;
+  }
+}
+async function connectGoogle(){
   if(!isGoogleConfigured()){
     showToast('أضف Client ID الخاص بك أولاً داخل الكود (أعلى قسم Google integration)');
     return;
   }
   if(!gTokenClient){ showToast('جاري تحميل مكتبة جوجل، حاول بعد لحظات'); return; }
-  gTokenClient.requestAccessToken({ prompt: gAccessToken ? '' : 'consent' });
+  try{
+    await requestGoogleToken(true);
+    showToast('تم الاتصال بحساب جوجل ✓');
+    await fetchGoogleUserInfo();
+    await ensureDriveFile();
+    await checkAndSync();
+  }catch(e){
+    setLastError(e.message);
+    showToast('تعذّر الاتصال بحساب جوجل: ' + e.message);
+  }
+}
+async function trySilentRestore(){
+  if(!isGoogleConfigured()) return;
+  if(LocalStore.get('google_connected') !== '1') return;
+  await new Promise(resolve=>{
+    const t0 = Date.now();
+    (function check(){
+      if(gTokenClient || Date.now()-t0 > 5000) resolve();
+      else setTimeout(check, 200);
+    })();
+  });
+  if(!gTokenClient) return;
+  try{
+    await requestGoogleToken(false);
+    await fetchGoogleUserInfo();
+    await ensureDriveFile();
+    await checkAndSync();
+  }catch(e){
+    console.warn('تعذرت استعادة الجلسة تلقائيًا، سيحتاج المستخدم لإعادة الربط يدويًا:', e.message);
+  }
 }
 
-/* ---- Drive: save/load all cases as one JSON file (scoped to files this app creates) ---- */
+/* ---- Central fetch wrapper: attaches a fresh token, and surfaces the real Google API error ---- */
+async function googleFetch(url, options={}){
+  await ensureFreshToken();
+  const headers = Object.assign({}, options.headers, { 'Authorization': 'Bearer ' + gAccessToken });
+  let res;
+  try{
+    res = await fetch(url, Object.assign({}, options, { headers }));
+  }catch(networkErr){
+    setLastError('فشل الاتصال بالشبكة أثناء الوصول إلى Google API: ' + networkErr.message);
+    throw networkErr;
+  }
+  if(!res.ok){
+    let body = null;
+    try{ body = await res.json(); }catch(e){}
+    const msg = (body && body.error && (body.error.message || JSON.stringify(body.error))) || (res.status + ' ' + res.statusText);
+    console.error('[Google API] ', res.status, url, body);
+    const err = new Error(msg); err.status = res.status; err.body = body;
+    setLastError(`(${res.status}) ${msg}`);
+    throw err;
+  }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
+}
+async function fetchGoogleUserInfo(){
+  try{
+    const info = await googleFetch('https://www.googleapis.com/oauth2/v3/userinfo');
+    syncStatus.account = info.email || info.name || '';
+    LocalStore.set('google_account_email', syncStatus.account);
+    updateGoogleBtn();
+  }catch(e){ /* already logged via setLastError */ }
+}
+
+/* ---- Drive: exactly one JSON file for this app, found-or-created once and reused ---- */
 async function driveFindFile(){
   const q = encodeURIComponent(`name='${DRIVE_FILENAME}' and trashed=false`);
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
-    headers:{ 'Authorization':'Bearer '+gAccessToken }
-  });
-  const data = await res.json();
-  return (data.files && data.files.length) ? data.files[0].id : null;
+  const data = await googleFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,modifiedTime)&spaces=drive`);
+  return (data.files && data.files.length) ? data.files[0] : null;
 }
-async function driveLoadCases(){
-  if(!gConnected) return;
-  try{
-    let fid = gDriveFileId || await driveFindFile();
-    if(!fid) return;
-    gDriveFileId = fid;
-    await window.storage.set('gdrive_file_id', fid, false);
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fid}?alt=media`, {
-      headers:{ 'Authorization':'Bearer '+gAccessToken }
-    });
-    const remote = await res.json();
-    if(Array.isArray(remote) && remote.length){
-      cases = remote;
-      await window.storage.set('cases', JSON.stringify(cases), false);
-      renderAll();
-    }
-  }catch(e){ console.error('driveLoadCases', e); }
+function buildMultipartBody(boundary, metadata, wrapperObj){
+  return `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+         `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(wrapperObj)}\r\n--${boundary}--`;
 }
-async function driveSaveCases(){
-  if(!gConnected) return;
+async function driveCreateFile(wrapperObj){
   const boundary = 'case_tracker_boundary';
-  const metadata = { name: DRIVE_FILENAME, mimeType: 'application/json' };
-  const body =
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(cases)}\r\n--${boundary}--`;
+  const body = buildMultipartBody(boundary, { name: DRIVE_FILENAME, mimeType: 'application/json' }, wrapperObj);
+  return googleFetch(`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime`, {
+    method:'POST', headers:{ 'Content-Type': `multipart/related; boundary=${boundary}` }, body
+  });
+}
+async function ensureDriveFile(){
+  if(gDriveFileId) return gDriveFileId;
+  let fid = LocalStore.get('gdrive_file_id');
+  if(fid){
+    try{
+      await googleFetch(`https://www.googleapis.com/drive/v3/files/${fid}?fields=id`);
+      gDriveFileId = fid;
+      setSyncStatus({ driveFileId: fid });
+      return fid;
+    }catch(e){ LocalStore.remove('gdrive_file_id'); } // الملف حُذف أو غير متاح — نبحث/ننشئ من جديد
+  }
+  const found = await driveFindFile();
+  if(found){
+    gDriveFileId = found.id;
+    LocalStore.set('gdrive_file_id', found.id);
+    setSyncStatus({ driveFileId: found.id });
+    return found.id;
+  }
+  const wrapper = getLocalWrapper();
+  const created = await driveCreateFile(wrapper);
+  gDriveFileId = created.id;
+  LocalStore.set('gdrive_file_id', created.id);
+  LocalStore.set('syncedAt', created.modifiedTime || nowISO());
+  setSyncStatus({ driveFileId: created.id, lastSync: nowISO() });
+  return created.id;
+}
+function getLocalWrapper(){
+  const raw = LocalStore.get('data');
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return { updatedAt: nowISO(), cases };
+}
+function isLocalDirty(){
+  const wrapper = getLocalWrapper();
+  const syncedAt = LocalStore.get('syncedAt');
+  if(!syncedAt) return true;
+  return new Date(wrapper.updatedAt) > new Date(syncedAt);
+}
+async function pushToDrive(){
+  await ensureDriveFile();
+  const wrapper = { updatedAt: getLocalWrapper().updatedAt || nowISO(), cases };
+  const boundary = 'case_tracker_boundary';
+  const body = buildMultipartBody(boundary, { name: DRIVE_FILENAME, mimeType: 'application/json' }, wrapper);
+  const data = await googleFetch(`https://www.googleapis.com/upload/drive/v3/files/${gDriveFileId}?uploadType=multipart&fields=id,modifiedTime`, {
+    method:'PATCH', headers:{ 'Content-Type': `multipart/related; boundary=${boundary}` }, body
+  });
+  LocalStore.set('syncedAt', data.modifiedTime || nowISO());
+  setSyncStatus({ lastSync: nowISO(), driveFileId: gDriveFileId, dataSize: body.length, lastError:null, lastErrorAt:null });
+}
+async function pullFromDrive(){
+  await ensureDriveFile();
+  const remote = await googleFetch(`https://www.googleapis.com/drive/v3/files/${gDriveFileId}?alt=media`);
+  const wrapper = (remote && Array.isArray(remote.cases)) ? remote
+    : { updatedAt: nowISO(), cases: Array.isArray(remote) ? remote : [] };
+  cases = wrapper.cases || [];
+  LocalStore.set('data', JSON.stringify(wrapper));
+  const meta = await googleFetch(`https://www.googleapis.com/drive/v3/files/${gDriveFileId}?fields=modifiedTime,size`);
+  LocalStore.set('syncedAt', meta.modifiedTime);
+  setSyncStatus({ lastSync: nowISO(), driveFileId: gDriveFileId, dataSize: Number(meta.size||0), lastError:null, lastErrorAt:null });
+  renderAll();
+}
+
+/* ---- Conflict-aware sync: compares local edits vs Drive's modifiedTime ---- */
+let pendingConflict = null;
+async function checkAndSync(){
+  if(!gConnected) return;
   try{
-    let fid = gDriveFileId || await driveFindFile();
-    const url = fid
-      ? `https://www.googleapis.com/upload/drive/v3/files/${fid}?uploadType=multipart`
-      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-    const res = await fetch(url, {
-      method: fid ? 'PATCH' : 'POST',
-      headers:{ 'Authorization':'Bearer '+gAccessToken, 'Content-Type': `multipart/related; boundary=${boundary}` },
-      body
-    });
-    const data = await res.json();
-    if(data.id){ gDriveFileId = data.id; await window.storage.set('gdrive_file_id', data.id, false); }
-  }catch(e){ console.error('driveSaveCases', e); }
+    await ensureDriveFile();
+    const meta = await googleFetch(`https://www.googleapis.com/drive/v3/files/${gDriveFileId}?fields=modifiedTime,size`);
+    const syncedAt = LocalStore.get('syncedAt');
+    const remoteChanged = !syncedAt || (new Date(meta.modifiedTime) > new Date(syncedAt));
+    const localDirty = isLocalDirty();
+
+    if(remoteChanged && localDirty){
+      pendingConflict = { remoteModifiedTime: meta.modifiedTime };
+      showConflictModal();
+      return;
+    }
+    if(remoteChanged && !localDirty){ await pullFromDrive(); return; }
+    if(!remoteChanged && localDirty){ await pushToDrive(); return; }
+    setSyncStatus({ lastSync: nowISO(), driveFileId: gDriveFileId, dataSize: Number(meta.size||0) });
+  }catch(e){ setLastError(e.message); }
+}
+function showConflictModal(){ document.getElementById('conflictOverlay').classList.add('open'); }
+async function resolveConflict(useRemote){
+  try{
+    if(useRemote) await pullFromDrive();
+    else await pushToDrive();
+    showToast(useRemote ? 'تم استخدام نسخة Drive' : 'تم رفع نسختك المحلية واستبدال ما في Drive');
+  }catch(e){ setLastError(e.message); showToast('فشل حل التعارض: ' + e.message); }
+  pendingConflict = null;
+  closeOverlay('conflictOverlay');
 }
 function queueDriveSave(){
   if(!gConnected) return;
   clearTimeout(gSaveDebounce);
-  gSaveDebounce = setTimeout(driveSaveCases, 1200);
+  gSaveDebounce = setTimeout(()=>{ pushToDrive().catch(e=>setLastError(e.message)); }, 1200);
+}
+
+/* ---- Sync status panel ---- */
+function renderSyncPanel(){
+  const panel = document.getElementById('syncPanelBody');
+  if(!panel || !document.getElementById('syncOverlay').classList.contains('open')) return;
+  const fmt = (iso)=> iso ? new Date(iso).toLocaleString('ar-SA') : '—';
+  const kb = syncStatus.dataSize ? (syncStatus.dataSize/1024).toFixed(1)+' KB' : '—';
+  panel.innerHTML = `
+    <div class="log-strip" style="flex-direction:column; align-items:stretch; gap:10px;">
+      <div>حالة تسجيل الدخول: <b>${syncStatus.connected ? '✅ متصل' : '⛔️ غير متصل'}</b></div>
+      <div>اسم الحساب: <b>${esc(syncStatus.account) || '—'}</b></div>
+      <div>آخر مزامنة مع Drive: <b>${fmt(syncStatus.lastSync)}</b></div>
+      <div>آخر حفظ محلي: <b>${fmt(syncStatus.lastSave)}</b></div>
+      <div>معرّف ملف Drive: <b style="direction:ltr; display:inline-block;">${esc(syncStatus.driveFileId) || '—'}</b></div>
+      <div>حجم البيانات: <b>${kb}</b></div>
+      <div>آخر خطأ: <b style="color:${syncStatus.lastError?'var(--red)':'inherit'};">${esc(syncStatus.lastError) || 'لا يوجد'}</b>${syncStatus.lastErrorAt? ' <span class="section-sub">('+fmt(syncStatus.lastErrorAt)+')</span>':''}</div>
+    </div>
+    <button class="btn btn-ghost" id="forceSyncBtn" style="margin-top:14px; width:100%; justify-content:center;">🔄 إعادة المزامنة الآن</button>
+  `;
+  const btn = document.getElementById('forceSyncBtn');
+  if(btn) btn.addEventListener('click', async ()=>{ showToast('جاري المزامنة…'); await checkAndSync(); showToast('تمت المزامنة'); });
 }
 
 /* ---- Calendar: timed event per active reminder preset ---- */
@@ -667,22 +912,15 @@ async function upsertCalendarEvent(c){
     const url = has
       ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${c.reminder.calendarEventId}`
       : `https://www.googleapis.com/calendar/v3/calendars/primary/events`;
-    const res = await fetch(url, {
-      method: has ? 'PATCH' : 'POST',
-      headers:{ 'Authorization':'Bearer '+gAccessToken, 'Content-Type':'application/json' },
-      body: JSON.stringify(event)
-    });
-    const data = await res.json();
+    const data = await googleFetch(url, { method: has ? 'PATCH' : 'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(event) });
     if(data.id) c.reminder.calendarEventId = data.id;
-  }catch(e){ console.error('upsertCalendarEvent', e); }
+  }catch(e){ /* logged via setLastError */ }
 }
 async function deleteCalendarEvent(c){
   if(!gConnected || !c.reminder.calendarEventId) return;
   try{
-    await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${c.reminder.calendarEventId}`, {
-      method:'DELETE', headers:{ 'Authorization':'Bearer '+gAccessToken }
-    });
-  }catch(e){ console.error('deleteCalendarEvent', e); }
+    await googleFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${c.reminder.calendarEventId}`, { method:'DELETE' });
+  }catch(e){ /* logged via setLastError */ }
 }
 
 /* ---- Google Tasks: syncs into iPhone Reminders if the user links their Google account
@@ -700,22 +938,15 @@ async function upsertGoogleTask(c){
     const url = has
       ? `https://www.googleapis.com/tasks/v1/lists/@default/tasks/${c.reminder.taskId}`
       : `https://www.googleapis.com/tasks/v1/lists/@default/tasks`;
-    const res = await fetch(url, {
-      method: has ? 'PATCH' : 'POST',
-      headers:{ 'Authorization':'Bearer '+gAccessToken, 'Content-Type':'application/json' },
-      body: JSON.stringify(task)
-    });
-    const data = await res.json();
+    const data = await googleFetch(url, { method: has ? 'PATCH' : 'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(task) });
     if(data.id) c.reminder.taskId = data.id;
-  }catch(e){ console.error('upsertGoogleTask', e); }
+  }catch(e){ /* logged via setLastError */ }
 }
 async function deleteGoogleTask(c){
   if(!gConnected || !c.reminder.taskId) return;
   try{
-    await fetch(`https://www.googleapis.com/tasks/v1/lists/@default/tasks/${c.reminder.taskId}`, {
-      method:'DELETE', headers:{ 'Authorization':'Bearer '+gAccessToken }
-    });
-  }catch(e){ console.error('deleteGoogleTask', e); }
+    await googleFetch(`https://www.googleapis.com/tasks/v1/lists/@default/tasks/${c.reminder.taskId}`, { method:'DELETE' });
+  }catch(e){ /* logged via setLastError */ }
 }
 async function removeReminderFromGoogle(c){
   await Promise.all([deleteCalendarEvent(c), deleteGoogleTask(c)]);
@@ -736,14 +967,18 @@ let editMode = false;
 let currentTab = 'study';
 
 async function loadCases(){
-  try{
-    const res = await window.storage.get('cases', false);
-    cases = res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){ cases = []; }
+  const wrapper = getLocalWrapper();
+  cases = wrapper.cases || [];
 }
 async function persistCases(){
-  try{ await window.storage.set('cases', JSON.stringify(cases), false); }
-  catch(e){ showToast('تعذّر الحفظ، حاول مجددًا'); }
+  const wrapper = { updatedAt: nowISO(), cases };
+  const ok = LocalStore.set('data', JSON.stringify(wrapper));
+  if(!ok){
+    setLastError('تعذّر الحفظ في تخزين المتصفح المحلي (قد تكون المساحة ممتلئة أو التخزين معطّل في هذا المتصفح)');
+    showToast('⚠️ تعذّر الحفظ محليًا — راجع "حالة المزامنة" لتفاصيل الخطأ');
+  } else {
+    setSyncStatus({ lastSave: wrapper.updatedAt });
+  }
   queueDriveSave();
 }
 function uid(){ return 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -1130,6 +1365,7 @@ document.querySelectorAll('[data-close]').forEach(b=>{
   b.addEventListener('click', ()=>closeOverlay(b.dataset.close));
 });
 document.querySelectorAll('.overlay').forEach(o=>{
+  if(o.id === 'conflictOverlay') return; // force explicit choice, no backdrop dismiss
   o.addEventListener('click', (e)=>{ if(e.target===o) closeOverlay(o.id); });
 });
 
@@ -1197,15 +1433,21 @@ document.getElementById('removeReminderBtn').addEventListener('click', async ()=
   showToast('تم إلغاء التذكير');
 });
 document.getElementById('googleConnectBtn').addEventListener('click', connectGoogle);
+document.getElementById('syncStatusBtn').addEventListener('click', ()=>{
+  document.getElementById('syncOverlay').classList.add('open');
+  renderSyncPanel();
+});
+document.getElementById('useRemoteBtn').addEventListener('click', ()=>resolveConflict(true));
+document.getElementById('useLocalBtn').addEventListener('click', ()=>resolveConflict(false));
 
 document.getElementById('searchInput').addEventListener('input', (e)=>{ searchQuery = e.target.value; renderGrid(); });
 
 const themeToggle = document.getElementById('themeToggle');
-themeToggle.addEventListener('click', async ()=>{
+themeToggle.addEventListener('click', ()=>{
   const root = document.documentElement;
   const next = root.getAttribute('data-theme')==='dark' ? 'light' : 'dark';
   root.setAttribute('data-theme', next);
-  try{ await window.storage.set('theme', next, false); }catch(e){}
+  LocalStore.set('theme', next);
 });
 window.addEventListener('scroll', ()=>{
   document.getElementById('topbar').classList.toggle('scrolled', window.scrollY>4);
@@ -1242,16 +1484,14 @@ function seedIfEmpty(){
 /* =================== Init =================== */
 async function init(){
   populateHijriSelectors();
-  let savedTheme = 'light';
-  try{
-    const t = await window.storage.get('theme', false);
-    if(t && t.value) savedTheme = t.value;
-  }catch(e){}
+  const savedTheme = LocalStore.get('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
-  try{
-    const fid = await window.storage.get('gdrive_file_id', false);
-    if(fid && fid.value) gDriveFileId = fid.value;
-  }catch(e){}
+
+  const cachedEmail = LocalStore.get('google_account_email');
+  if(cachedEmail) syncStatus.account = cachedEmail;
+  const cachedFid = LocalStore.get('gdrive_file_id');
+  if(cachedFid) syncStatus.driveFileId = cachedFid;
+
   await loadCases();
   seedIfEmpty();
   renderAll();
@@ -1260,7 +1500,9 @@ async function init(){
     document.getElementById('googleConnectBtn').title = 'أضف Client ID الخاص بك داخل الكود لتفعيل هذه الميزة';
   }
   initGoogleClient();
+  trySilentRestore(); // لا ننتظرها حتى لا تؤخر عرض الواجهة؛ تعمل في الخلفية
 }
+window.addEventListener('focus', ()=>{ if(gConnected) checkAndSync().catch(e=>setLastError(e.message)); });
 init();
 </script>
 </body>
