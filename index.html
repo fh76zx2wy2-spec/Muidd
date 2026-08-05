@@ -2,7 +2,9 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="theme-color" content="#0F6B63" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0F11" media="(prefers-color-scheme: dark)">
 <title>مُعِدّ — إدارة دراسة القضايا</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -35,14 +37,17 @@
   --shadow-lg: 0 4px 10px rgba(0,0,0,.35), 0 24px 56px -18px rgba(0,0,0,.65);
   color-scheme: dark;
 }
-*{box-sizing:border-box; margin:0; padding:0;}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
+html{overflow-x:hidden;}
 body{
   background:var(--bg); color:var(--text);
   font-family:'IBM Plex Sans Arabic', sans-serif;
   -webkit-font-smoothing:antialiased;
   transition:background .25s ease, color .25s ease;
   min-height:100vh;
+  overflow-x:hidden;
+  touch-action:pan-y;
 }
 .display{font-family:'Cairo', sans-serif;}
 button{font-family:inherit; cursor:pointer;}
@@ -52,18 +57,19 @@ input,select,textarea{font-family:inherit;}
 ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
 
 /* ---------- layout ---------- */
-.app{max-width:1180px; margin:0 auto; padding:20px 24px 80px;}
+.app{max-width:1180px; margin:0 auto; padding:20px 24px 100px;}
 .topbar{
   position:sticky; top:0; z-index:30; backdrop-filter:blur(14px);
   background:color-mix(in srgb, var(--bg) 78%, transparent);
   border-bottom:1px solid transparent;
   padding:14px 0;
+  padding-top:max(14px, env(safe-area-inset-top));
 }
 .topbar.scrolled{border-bottom-color:var(--border);}
-.topbar-inner{max-width:1180px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:14px;}
+.topbar-inner{max-width:1180px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
 .brand{display:flex; align-items:center; gap:10px; font-weight:800; font-size:19px;}
 .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft);}
-.search-wrap{flex:1; max-width:420px; position:relative;}
+.search-wrap{flex:1; max-width:420px; position:relative; min-width:160px;}
 .search-wrap input{
   width:100%; padding:10px 40px 10px 14px; border-radius:12px; border:1px solid var(--border);
   background:var(--surface-2); color:var(--text); font-size:14px; outline:none; transition:.15s;
@@ -147,7 +153,7 @@ input,select,textarea{font-family:inherit;}
 .chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
 
 /* case grid */
-.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(268px,1fr)); gap:16px; margin-top:16px;}
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(min(268px,100%),1fr)); gap:16px; margin-top:16px;}
 .case-card{
   background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px;
   box-shadow:var(--shadow); cursor:pointer; transition:.18s; position:relative;
@@ -189,10 +195,12 @@ input,select,textarea{font-family:inherit;}
 }
 .overlay.open .modal{transform:translateY(0) scale(1);}
 .modal.wide{max-width:760px;}
-.modal-head{display:flex; align-items:center; justify-content:space-between; padding:20px 22px; border-bottom:1px solid var(--border);}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:20px 22px; border-bottom:1px solid var(--border); flex-shrink:0; gap:10px;}
+.modal-head > div:first-child{min-width:0; overflow:hidden;}
+.modal-head > div:first-child > *{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .modal-title{font-weight:800; font-size:17px;}
-.modal-body{padding:20px 22px; overflow-y:auto;}
-.modal-foot{padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;}
+.modal-body{padding:20px 22px; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+.modal-foot{padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-shrink:0; padding-bottom:max(16px, env(safe-area-inset-bottom));}
 
 .field{margin-bottom:16px;}
 .field label{display:block; font-size:12.5px; font-weight:600; color:var(--text-2); margin-bottom:7px;}
@@ -259,14 +267,92 @@ input,select,textarea{font-family:inherit;}
 .fab{
   position:fixed; bottom:26px; left:26px; z-index:40; width:54px; height:54px; border-radius:50%; background:var(--accent);
   color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-lg); border:none; transition:.18s;
+  bottom:max(26px, calc(env(safe-area-inset-bottom) + 16px));
 }
 .fab:hover{transform:scale(1.06);}
 
+/* ============ RESPONSIVE: tablets & small laptops ============ */
+@media (max-width:900px){
+  .app{padding-left:18px; padding-right:18px;}
+  .topbar-inner{padding-left:18px; padding-right:18px;}
+}
+
+/* ============ RESPONSIVE: phones ============ */
 @media (max-width:640px){
+  .app{padding:14px 14px 110px;}
+  .topbar{padding-top:max(10px, env(safe-area-inset-top));}
+  .topbar-inner{padding:0 14px; gap:8px;}
+  .brand{font-size:17px; gap:7px;}
+  .brand .dot{width:8px; height:8px;}
+
+  /* search drops to its own full-width row so icons never wrap awkwardly */
+  .search-wrap{order:5; flex-basis:100%; max-width:none; margin-top:2px;}
+  .search-wrap input{font-size:16px; padding:11px 40px 11px 14px;} /* 16px prevents iOS auto-zoom */
+
+  #newCaseBtn{display:none;} /* the FAB covers this action on mobile, avoids duplicate/crowded buttons */
+
+  .icon-btn{width:40px; height:40px;}
+  .btn{padding:10px 14px; font-size:13.5px;}
+  #googleBtnLabel{max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block;}
+
+  .account-menu{left:auto; right:0; min-width:220px; max-width:calc(100vw - 28px);}
+
+  .section{margin-top:24px;}
+  .section-title{font-size:14px;}
+
+  .priority-scroller{gap:10px; margin:0 -14px; padding:0 14px 8px;}
+  .pcard{min-width:76vw; scroll-snap-align:center;}
+
+  .grid{gap:12px;}
+  .case-card{padding:15px;}
+
+  .chip{padding:8px 14px; font-size:12.5px;} /* comfortable tap target */
+
+  /* ---- bottom-sheet modals: full-width, anchored to bottom, rounded top only ---- */
+  .overlay{align-items:flex-end; padding:0;}
+  .modal{
+    max-width:none; width:100%; border-radius:20px 20px 0 0;
+    max-height:88vh; max-height:88dvh;
+    transform:translateY(100%);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .overlay.open .modal{transform:translateY(0);}
+  .modal-head{padding:16px 18px;}
+  .modal-body{padding:16px 18px;}
+  .modal-foot{padding:14px 18px; flex-wrap:wrap;}
+  .modal-foot .btn{flex:1; justify-content:center; min-width:120px;}
+
+  .field input[type=text], .field select, .field textarea, .field input[type=time]{
+    font-size:16px; padding:12px 14px; /* 16px avoids iOS input auto-zoom */
+  }
   .row2, .row3{grid-template-columns:1fr;}
-  .detail-cards{grid-template-columns:1fr;}
+  .hijri-picker{flex-wrap:wrap;}
+  .hijri-picker select{min-width:0; flex:1 1 30%;}
+
+  .toggle-opt{padding:11px 14px; font-size:13.5px;}
   .check-grid{grid-template-columns:1fr;}
-  .search-wrap{max-width:none;}
+  .check-item{padding:12px 13px;}
+
+  .detail-cards{grid-template-columns:1fr;}
+  .detail-header{flex-wrap:wrap;}
+  #d_number{font-size:16px;}
+
+  .log-strip{gap:10px 16px; font-size:11.5px;}
+  .tabs{gap:0; overflow-x:auto; -webkit-overflow-scrolling:touch; flex-wrap:nowrap;}
+  .tab{margin-left:14px; white-space:nowrap; font-size:12.5px; padding:9px 2px;}
+
+  .toast{width:calc(100% - 32px); right:16px; transform:translateX(0) translateY(20px); text-align:center;
+    bottom:max(20px, calc(env(safe-area-inset-bottom) + 12px));}
+  .toast.show{transform:translateX(0) translateY(0);}
+
+  .fab{width:56px; height:56px; left:18px;}
+}
+
+@media (max-width:380px){
+  .brand span.display{font-size:15px;}
+  .pcard{min-width:82vw;}
+  #googleBtnLabel{display:none;} /* icon-only Google button on very narrow phones */
+  .btn#googleConnectBtn{padding:10px;}
 }
 </style>
 </head>
@@ -451,6 +537,12 @@ input,select,textarea{font-family:inherit;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- TEMP DEBUG PANEL — remove this whole block once multi-device sync is verified.
+     Enable with: localStorage.setItem('ct_debug','1') then reload. -->
+<div id="debugPanel" style="display:none; position:fixed; bottom:0; right:0; left:0; max-height:40vh; overflow-y:auto;
+  background:#0b0b0d; color:#7CFCB0; font-family:monospace; font-size:11px; padding:10px 12px; z-index:999;
+  direction:ltr; text-align:left; border-top:2px solid #7CFCB0;"></div>
 
 <!-- Sync status panel -->
 <div class="overlay" id="syncOverlay">

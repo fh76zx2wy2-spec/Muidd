@@ -726,8 +726,7 @@ document.getElementById('useLocalBtn').addEventListener('click', async ()=>{
   closeOverlay('conflictOverlay');
 });
 
-Auth.onAuthChange(()=>{ updateGoogleBtn(); });
-Sync.onStatusChange((s)=>{
+Auth.onAuthChange(()=>{ updateGoogleBtn(); });Sync.onStatusChange((s)=>{
   renderStatusDot();
   renderSyncPanel();
   if(s.state === 'conflict') document.getElementById('conflictOverlay').classList.add('open');
@@ -791,5 +790,35 @@ function init(){
     }
   })();
 }
-window.addEventListener('focus', ()=>{ if(Auth.getAuthState().connected) Sync.checkAndSync(); });
+/* =================== TEMP DEBUG PANEL — remove after multi-device verification ===================
+   Enable in a real browser: localStorage.setItem('ct_debug','1') then reload the page. */
+function initDebugPanel(){
+  let debugOn = false;
+  try{ debugOn = localStorage.getItem('ct_debug') === '1'; }catch(e){}
+  if(!debugOn) return;
+  const panel = document.getElementById('debugPanel');
+  panel.style.display = 'block';
+  function render(){
+    const log = window.__authDebugLog || [];
+    const authState = Auth.getAuthState();
+    const syncState = Sync.getStatus();
+    const lines = log.slice(-25).map(e => {
+      const t = e.t.split('T')[1].split('.')[0];
+      const rest = Object.keys(e).filter(k=>k!=='t'&&k!=='event').map(k=>`${k}=${e[k]}`).join(' ');
+      return `${t}  ${e.event}  ${rest}`;
+    }).join('\n');
+    panel.textContent =
+      `[هذا الجهاز] connected=${authState.connected}  account=${(authState.account&&authState.account.email)||'-'}\n` +
+      `[المزامنة]   state=${syncState.state}  lastSync=${syncState.lastSync||'-'}  lastError=${syncState.lastError||'-'}\n` +
+      `----------------------------------------------------------------\n` + lines;
+  }
+  render();
+  setInterval(render, 2000);
+}
+initDebugPanel();
+/* =================== END TEMP DEBUG PANEL =================== */
+
+window.addEventListener('focus', ()=>{
+  Auth.refreshIfStale().finally(()=>{ if(Auth.getAuthState().connected) Sync.checkAndSync(); });
+});
 init();

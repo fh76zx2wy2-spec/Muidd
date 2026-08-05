@@ -58,6 +58,17 @@ let pushTimer = null;
 let pushInFlight = false;
 let pushAgainAfter = false;
 
+/**
+ * SECURITY / ISOLATION GUARANTEE
+ * The Drive file must only ever contain case data — never tokens, account info,
+ * or device/session identifiers. This allowlist is enforced here (not just by
+ * convention) so a future change elsewhere in the codebase can't accidentally
+ * leak session data into the shared file that every device reads.
+ */
+function toDrivePayload(wrapper){
+  return { updatedAt: wrapper.updatedAt, cases: Array.isArray(wrapper.cases) ? wrapper.cases : [] };
+}
+
 function queuePush(delay = 900){
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => { doPush(); }, delay);
@@ -70,7 +81,7 @@ async function doPush(){
   pushInFlight = true;
   setStatus({ state: "syncing" });
   try{
-    const wrapper = loadLocal();
+    const wrapper = toDrivePayload(loadLocal());
     const result = await Drive.push(wrapper);
     localStorage.setItem(LS_SYNCED_AT, result.modifiedTime || new Date().toISOString());
     setStatus({ state: "synced", lastSync: new Date().toISOString(), lastError: null });
@@ -87,11 +98,34 @@ export async function checkAndSync(){
   if(!Auth.getAuthState().connected) return { conflict: false };
   try{
     const local = loadLocal();
-    await Drive.ensureFile(local);
+    await Drive.ensureFile(toDrivePayload(local));
     const meta = await Drive.getMeta();
     const syncedAt = localStorage.getItem(LS_SYNCED_AT);
-    const remoteChanged = !syncedAt || (new Date(meta.modifiedTime) > new Date(syncedAt));
-    const localDirty = !syncedAt || (new Date(local.updatedAt) > new Date(syncedAt));
+
+    // FIRST-EVER SYNC ON THIS DEVICE: there is no baseline to compare against, so this is
+    // never a real conflict — it's a normal "new device joins" event. Merge instead of
+    // overwriting either side: take Drive's cases, and keep any purely-local cases (e.g.
+    // demo/seed data created before this device ever connected) that Drive doesn't have yet.
+    if(!syncedAt){
+      const remote = await Drive.pull();
+      const remoteCases = (remote && Array.isArray(remote.cases)) ? remote.cases : [];
+      const remoteIds = new Set(remoteCases.map(c => c.id));
+      const localOnly = (local.cases || []).filter(c => !remoteIds.has(c.id));
+      const mergedCases = [...remoteCases, ...localOnly];
+      const wrapper = { updatedAt: new Date().toISOString(), cases: mergedCases };
+      saveLocal(wrapper);
+      hooks.applyRemoteCases && hooks.applyRemoteCases(wrapper.cases);
+      if(localOnly.length){
+        await doPush(); // push the merged set back so Drive now has everything too
+      } else {
+        localStorage.setItem(LS_SYNCED_AT, meta.modifiedTime);
+      }
+      setStatus({ state: "synced", lastSync: new Date().toISOString(), lastError: null });
+      return { conflict: false, merged: true, mergedInLocalOnly: localOnly.length };
+    }
+
+    const remoteChanged = new Date(meta.modifiedTime) > new Date(syncedAt);
+    const localDirty = new Date(local.updatedAt) > new Date(syncedAt);
 
     if(remoteChanged && localDirty){
       setStatus({ state: "conflict" });
